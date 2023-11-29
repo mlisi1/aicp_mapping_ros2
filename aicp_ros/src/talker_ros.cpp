@@ -1,12 +1,11 @@
 #include "aicp_ros/talker_ros.hpp"
-#include "aicp_utils/common.hpp"
+#include "aicp_core/aicp_utils/common.hpp"
 
 namespace aicp {
 
-ROSTalker::ROSTalker(ros::NodeHandle& nh, std::string fixed_frame) : nh_(nh),
-                                                                     fixed_frame_(fixed_frame)
+ROSTalker::ROSTalker(std::string fixed_frame) : Node("ros_talker"), fixed_frame_(fixed_frame)
 {
-    footstep_plan_pub_ = nh_.advertise<geometry_msgs::PoseArray>("/aicp/footstep_plan_request_list",10);
+    footstep_plan_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/aicp/footstep_plan_request_list",10);
 }
 
 void ROSTalker::publishFootstepPlan(PathPoses& path,
@@ -16,14 +15,15 @@ void ROSTalker::publishFootstepPlan(PathPoses& path,
     if(reverse_path)
         reversePath(path);
 
-    geometry_msgs::PoseArray path_msg;
+    geometry_msgs::msg::PoseArray path_msg;
     int secs = utime*1E-6;
     int nsecs = (utime - (secs*1E6))*1E3;
-    path_msg.header.stamp = ros::Time(secs, nsecs);
+    rclcpp::Time timestamp(secs, nsecs);
+    path_msg.header.stamp = timestamp;
     path_msg.header.frame_id = fixed_frame_;
 
     for (size_t i = 0; i < path.size(); ++i){
-        geometry_msgs::Pose p;
+        geometry_msgs::msg::Pose p;
         p.position.x = path[i].translation().x();
         p.position.y = path[i].translation().y();
         p.position.z = path[i].translation().z();
@@ -37,7 +37,7 @@ void ROSTalker::publishFootstepPlan(PathPoses& path,
         path_msg.poses.push_back(p);
     }
 
-    footstep_plan_pub_.publish(path_msg);
+    footstep_plan_pub_->publish(path_msg);
 }
 
 void ROSTalker::reversePath(PathPoses& path){

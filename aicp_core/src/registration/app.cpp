@@ -1,11 +1,11 @@
-#include "aicp_registration/app.hpp"
-#include "aicp_registration/registration.hpp"
-#include "aicp_overlap/overlap.hpp"
-#include "aicp_classification/classification.hpp"
+#include "aicp_core/aicp_registration/app.hpp"
+#include "aicp_core/aicp_registration/registration.hpp"
+#include "aicp_core/aicp_overlap/overlap.hpp"
+#include "aicp_core/aicp_classification/classification.hpp"
 
-#include "aicp_utils/timing.hpp"
-#include "aicp_utils/common.hpp"
-#include "aicp_utils/poseFileReader.hpp"
+#include "aicp_core/aicp_utils/timing.hpp"
+#include "aicp_core/aicp_utils/common.hpp"
+#include "aicp_core/aicp_utils/poseFileReader.hpp"
 
 namespace aicp {
 

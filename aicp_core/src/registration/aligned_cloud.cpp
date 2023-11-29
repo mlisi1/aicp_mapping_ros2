@@ -1,5 +1,5 @@
-#include "aicp_registration/aligned_cloud.hpp"
-#include "aicp_utils/common.hpp"
+#include "aicp_core/aicp_registration/aligned_cloud.hpp"
+#include "aicp_core/aicp_utils/common.hpp"
 
 namespace aicp {
 

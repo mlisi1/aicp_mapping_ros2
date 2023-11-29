@@ -14,11 +14,11 @@
 #include <pwd.h>
 
 // Project lib
-#include "aicp_registration/app.hpp"
+#include "aicp_core/aicp_registration/app.hpp"
 
-#include "aicp_registration/yaml_configurator.hpp"
-#include "aicp_utils/common.hpp"
-#include "aicp_utils/cloudIO.h"
+#include "aicp_core/aicp_registration/yaml_configurator.hpp"
+#include "aicp_core/aicp_utils/common.hpp"
+#include "aicp_core/aicp_utils/cloudIO.hpp"
 
 using namespace std;
 using namespace aicp;

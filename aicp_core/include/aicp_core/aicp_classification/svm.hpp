@@ -2,8 +2,8 @@
 #define AICP_CLASSIFICATION_IMPL_RF_HPP_
 
 // classification
-#include "aicp_classification/common.hpp"
-#include "aicp_classification/abstract_classification.hpp"
+#include "aicp_core/aicp_classification/common.hpp"
+#include "aicp_core/aicp_classification/abstract_classification.hpp"
 
 // opencv
 #include <opencv2/core/core.hpp>

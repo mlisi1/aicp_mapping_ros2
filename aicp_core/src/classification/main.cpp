@@ -1,9 +1,9 @@
 // classification
-#include "aicp_classification/classification.hpp"
-#include "aicp_classification/common.hpp"
+#include "aicp_core/aicp_classification/classification.hpp"
+#include "aicp_core/aicp_classification/common.hpp"
 
 // project
-#include "aicp_utils/fileIO.h"
+#include "aicp_core/aicp_utils/fileIO.h"
 
 #include <Eigen/Dense>
 #include <memory> // unique_ptr

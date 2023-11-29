@@ -1,8 +1,8 @@
 #ifndef AICP_REGISTRATION_CREATE_REGISTRATOR_HPP_
 #define AICP_REGISTRATION_CREATE_REGISTRATOR_HPP_
 
-#include "aicp_registration/abstract_registrator.hpp"
-#include "aicp_registration/pointmatcher_registration.hpp"
+#include "abstract_registrator.hpp"
+#include "pointmatcher_registration.hpp"
 
 namespace aicp {
 

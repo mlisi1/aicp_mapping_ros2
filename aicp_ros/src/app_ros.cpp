@@ -1,36 +1,36 @@
 #include "aicp_ros/app_ros.hpp"
 
-#include "aicp_registration/registration.hpp"
-#include "aicp_overlap/overlap.hpp"
-#include "aicp_classification/classification.hpp"
-#include "aicp_utils/common.hpp"
+#include "aicp_core/aicp_registration/registration.hpp"
+#include "aicp_core/aicp_overlap/overlap.hpp"
+#include "aicp_core/aicp_classification/classification.hpp"
+#include "aicp_core/aicp_utils/common.hpp"
 
-#include <tf_conversions/tf_eigen.h>
+// #include <tf_conversions/tf_eigen.h>
+#include <tf2_eigen/tf2_eigen.hpp>
 
 #include <pcl/io/ply_io.h>
 
 namespace aicp {
 
-AppROS::AppROS(ros::NodeHandle &nh,
-               const CommandLineConfig &cl_cfg,
+AppROS::AppROS(const CommandLineConfig &cl_cfg,
                const VelodyneAccumulatorConfig &va_cfg,
                const RegistrationParams &reg_params,
                const OverlapParams &overlap_params,
                const ClassificationParams &class_params) :
     App(cl_cfg, reg_params, overlap_params, class_params),
-    nh_(nh), accu_config_(va_cfg)
+    Node("AppROS"), accu_config_(va_cfg)
 {
     paramInit();
 
     // Data structure
     aligned_clouds_graph_ = new AlignedCloudsGraph();
     // Accumulator
-    accu_ = new VelodyneAccumulatorROS(nh_, accu_config_);
+    accu_ = new VelodyneAccumulatorROS(accu_config_);
     // Visualizer
-    vis_ = new ROSVisualizer(nh_, cl_cfg_.fixed_frame);
-    vis_ros_ = new ROSVisualizer(nh_, cl_cfg_.fixed_frame);
+    vis_ = new ROSVisualizer(cl_cfg_.fixed_frame);
+    // vis_ros_ = new ROSVisualizer(cl_cfg_.fixed_frame);
     // Talker
-    talk_ros_ = new ROSTalker(nh_, cl_cfg_.fixed_frame);
+    talk_ros_ = new ROSTalker(cl_cfg_.fixed_frame);
 
     // Init pose to identity
     world_to_body_ = Eigen::Isometry3d::Identity();
@@ -40,20 +40,20 @@ AppROS::AppROS(ros::NodeHandle &nh,
     loadMapFromFile(cl_cfg_.map_from_file_path);
 
     // Pose publisher
-    corrected_pose_pub_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>(cl_cfg_.output_channel,10);
+    corrected_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(cl_cfg_.output_channel,10);
 
     // Verbose publishers
     if (cl_cfg_.verbose)
     {
-        overlap_pub_ = nh_.advertise<std_msgs::Float32>("/aicp/overlap",10);
-        alignability_pub_ = nh_.advertise<std_msgs::Float32>("/aicp/alignability",10);
-        risk_pub_ = nh_.advertise<std_msgs::Float32>("/aicp/alignment_risk",10);
+        overlap_pub_ = this->create_publisher<std_msgs::msg::Float32>("/aicp/overlap",10);
+        alignability_pub_ = this->create_publisher<std_msgs::msg::Float32>("/aicp/alignability",10);
+        risk_pub_ = this->create_publisher<std_msgs::msg::Float32>("/aicp/alignment_risk",10);
     }
 
     // Write the incoming data to file. This should be false when running live
     if (cl_cfg_.write_input_clouds_to_file)
     {
-        ROS_WARN_STREAM("[Aicp] Writing input clouds to file. Only do this in post processing");
+        RCLCPP_WARN_STREAM(this->get_logger(), "[Aicp] Writing input clouds to file. Only do this in post processing");
         std::stringstream input_poses_filename;
         input_poses_filename << data_directory_path_.str() << "/aicp_input_poses.csv";
 
@@ -65,11 +65,11 @@ AppROS::AppROS(ros::NodeHandle &nh,
 
 }
 
-void AppROS::robotPoseCallBack(const geometry_msgs::PoseWithCovarianceStampedConstPtr &pose_msg_in)
+void AppROS::robotPoseCallBack(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr pose_msg_in)
 {
     if ((cl_cfg_.load_map_from_file || cl_cfg_.localize_against_prior_map)
          && !pose_marker_initialized_){
-        ROS_WARN_STREAM("[Aicp] Pose initial guess in map not set, waiting for interactive marker...");
+        RCLCPP_WARN_STREAM(this->get_logger(), "[Aicp] Pose initial guess in map not set, waiting for interactive marker...");
         return;
     }
 
@@ -89,10 +89,10 @@ void AppROS::robotPoseCallBack(const geometry_msgs::PoseWithCovarianceStampedCon
             initialT_ = (world_to_body_marker_msg_ * world_to_body_.inverse()).matrix().cast<float>();
             total_correction_ = fromMatrix4fToIsometry3d(initialT_);
         } // identity otherwise
-        ROS_INFO_STREAM("[Aicp] Starting localization...");
+        RCLCPP_INFO_STREAM(this->get_logger(), "[Aicp] Starting localization...");
     }
 
-    geometry_msgs::PoseWithCovarianceStamped pose_msg_out;
+    geometry_msgs::msg::PoseWithCovarianceStamped pose_msg_out;
 
     // Apply correction if available (identity otherwise)
     // TODO: this could be wrong and must be fixed to match cl_cfg_.working_mode == "robot" case
@@ -100,20 +100,23 @@ void AppROS::robotPoseCallBack(const geometry_msgs::PoseWithCovarianceStampedCon
                                                           // body -> reference * world -> body
     // Publish initial guess interactive marker
     if (!pose_initialized_)
-        vis_->publishPoses(corrected_pose_, 0, "", ros::Time::now().toNSec() / 1000);
+        vis_->publishPoses(corrected_pose_, 0, "", rclcpp::Clock().now().nanoseconds() / 1000);
 
     // Publish fixed_frame to odom tf
-    ros::Time msg_time(pose_msg_in->header.stamp.sec, pose_msg_in->header.stamp.nsec);
+    rclcpp::Time msg_time(pose_msg_in->header.stamp.sec, pose_msg_in->header.stamp.nanosec);
     // vis_ros_->publishFixedFrameToOdomTF(corrected_pose_, msg_time);
     // vis_ros_->publishFixedFrameToOdomPose(corrected_pose_, msg_time);
 
     // Publish /aicp/pose_corrected
-    tf::poseEigenToTF(corrected_pose_, temp_tf_pose_);
-    tf::poseTFToMsg(temp_tf_pose_, pose_msg_out.pose.pose);
+    // tf::poseEigenToTF(corrected_pose_, temp_tf_pose_);
+    // tf::poseTFToMsg(temp_tf_pose_, pose_msg_out.pose.pose);
+    pose_msg_out.pose.pose = tf2::toMsg(corrected_pose_);
+
+
     pose_msg_out.pose.covariance = pose_msg_in->pose.covariance;
     pose_msg_out.header.stamp = pose_msg_in->header.stamp;
     pose_msg_out.header.frame_id = cl_cfg_.fixed_frame;
-    corrected_pose_pub_.publish(pose_msg_out);
+    corrected_pose_pub_->publish(pose_msg_out);
 
     if ( updated_correction_ )
     {
@@ -127,21 +130,21 @@ void AppROS::robotPoseCallBack(const geometry_msgs::PoseWithCovarianceStampedCon
     if (cl_cfg_.verbose)
     {
         // Publish /aicp/overlap
-        std_msgs::Float32 overlap_msg;
+        std_msgs::msg::Float32 overlap_msg;
         overlap_msg.data = octree_overlap_;
-        overlap_pub_.publish(overlap_msg);
+        overlap_pub_->publish(overlap_msg);
 
         if (!risk_prediction_.isZero())
         {
             // Publish /aicp/alignability
-            std_msgs::Float32 alignability_msg;
+            std_msgs::msg::Float32 alignability_msg;
             alignability_msg.data = alignability_;
-            alignability_pub_.publish(alignability_msg);
+            alignability_pub_->publish(alignability_msg);
 
             // Publish /aicp/alignment_risk
-            std_msgs::Float32 risk_msg;
+            std_msgs::msg::Float32 risk_msg;
             risk_msg.data = risk_prediction_(0,0);
-            risk_pub_.publish(risk_msg);
+            risk_pub_->publish(risk_msg);
         }
     }
 
@@ -175,9 +178,9 @@ void AppROS::writeCloudToFile(AlignedCloudPtr cloud){
 }
 
 
-void AppROS::velodyneCallBack(const sensor_msgs::PointCloud2::ConstPtr &laser_msg_in){
+void AppROS::velodyneCallBack(const sensor_msgs::msg::PointCloud2::SharedPtr laser_msg_in){
     if (!pose_initialized_){
-        ROS_WARN_STREAM("[Aicp] Pose not initialized, waiting for pose prior...");
+        RCLCPP_WARN_STREAM(this->get_logger(), "[Aicp] Pose not initialized, waiting for pose prior...");
         return;
     }
 
@@ -255,18 +258,18 @@ void AppROS::velodyneCallBack(const sensor_msgs::PointCloud2::ConstPtr &laser_ms
     }
 }
 
-void AppROS::interactionMarkerCallBack(const geometry_msgs::PoseStampedConstPtr& init_pose_msg_in)
+void AppROS::interactionMarkerCallBack(const geometry_msgs::msg::PoseStamped::SharedPtr init_pose_msg_in)
 {
     if (!cl_cfg_.load_map_from_file && !cl_cfg_.localize_against_prior_map){
-        ROS_WARN_STREAM("[Aicp] Map service disabled - interactive marker neglected.");
+        RCLCPP_WARN_STREAM(this->get_logger(), "[Aicp] Map service disabled - interactive marker neglected.");
         return;
     }
     if (!map_initialized_){
-        ROS_WARN_STREAM("[Aicp] Map not initialized, waiting for map service...");
+        RCLCPP_WARN_STREAM(this->get_logger(), "[Aicp] Map not initialized, waiting for map service...");
         return;
     }
     if (!pose_initialized_){ // initial pose can be updated by user until localization starts, not after.
-        ROS_INFO_STREAM("[Aicp] Set localization initial pose in map.");
+        RCLCPP_INFO_STREAM(this->get_logger(), "[Aicp] Set localization initial pose in map.");
 
         // world -> body initial guess from interactive marker
         getPoseAsIsometry3d(init_pose_msg_in, world_to_body_marker_msg_);
@@ -274,33 +277,34 @@ void AppROS::interactionMarkerCallBack(const geometry_msgs::PoseStampedConstPtr&
         pose_marker_initialized_ = true;
     }
     else
-        ROS_WARN_STREAM("[Aicp] Interactive marker cannot be updated after localization started!");
+        RCLCPP_WARN_STREAM(this->get_logger(), "[Aicp] Interactive marker cannot be updated after localization started!");
 }
 
-bool AppROS::loadMapFromFileCallBack(aicp_srv::ProcessFile::Request& request, aicp_srv::ProcessFile::Response& response)
+bool AppROS::loadMapFromFileCallBack(const std::shared_ptr<aicp_srv::srv::ProcessFile::Request> request, 
+                                            std::shared_ptr<aicp_srv::srv::ProcessFile::Response> response)
 {
-    return response.success = loadMapFromFile(request.file_path);
+    return response->success = loadMapFromFile(request->file_path);
 }
 
 bool AppROS::loadMapFromFile(const std::string& file_path)
 {
     if (!cl_cfg_.load_map_from_file && !cl_cfg_.localize_against_prior_map){
-        ROS_WARN_STREAM("[Aicp] Map service disabled!");
+        RCLCPP_WARN_STREAM(this->get_logger(), "[Aicp] Map service disabled!");
         return false;
     }
     if (pose_initialized_){
         pcl::PointCloud<pcl::PointXYZ>::Ptr map = prior_map_->getCloud();
         vis_->publishMap(map, prior_map_->getUtime(), 0);
-        ROS_WARN_STREAM("[Aicp] Map cannot be updated after localization started!");
+        RCLCPP_WARN_STREAM(this->get_logger(), "[Aicp] Map cannot be updated after localization started!");
         return false;
     }
 
     // Load map from file
-    ROS_INFO_STREAM("[Aicp] Loading map from '" << file_path << "' ...");
+    RCLCPP_INFO_STREAM(this->get_logger(), "[Aicp] Loading map from '" << file_path << "' ...");
     pcl::PointCloud<pcl::PointXYZ>::Ptr map (new pcl::PointCloud<pcl::PointXYZ>);
     if (pcl::io::loadPLYFile<pcl::PointXYZ>(file_path.c_str(), *map) == -1)
     {
-      ROS_ERROR_STREAM("[Aicp] Error loading map from file!");
+      RCLCPP_ERROR_STREAM(this->get_logger(), "[Aicp] Error loading map from file!");
       return false;
     }
 
@@ -310,10 +314,10 @@ bool AppROS::loadMapFromFile(const std::string& file_path)
     // Populate map object
     if (map_initialized_)
         delete prior_map_;
-    prior_map_ = new AlignedCloud(ros::Time::now().toNSec() / 1000,
+    prior_map_ = new AlignedCloud(rclcpp::Clock().now().nanoseconds() / 1000,
                                   filtered_map,
                                   Eigen::Isometry3d::Identity());
-    ROS_INFO_STREAM("[Aicp] Loaded map with " << prior_map_->getCloud()->points.size() << " points.");
+    RCLCPP_INFO_STREAM(this->get_logger(), "[Aicp] Loaded map with " << prior_map_->getCloud()->points.size() << " points.");
 
     map_initialized_ = true;
     vis_->publishMap(map, prior_map_->getUtime(), 0);
@@ -321,9 +325,10 @@ bool AppROS::loadMapFromFile(const std::string& file_path)
     return true;
 }
 
-bool AppROS::goBackRequestCallBack(std_srvs::Trigger::Request& request, std_srvs::Trigger::Response& response)
+bool AppROS::goBackRequestCallBack(const std::shared_ptr<std_srvs::srv::Trigger::Request> request, 
+                                        std::shared_ptr<std_srvs::srv::Trigger::Response> response)
 {
-    return response.success = goBackRequest();
+    return response->success = goBackRequest();
 }
 
 bool AppROS::goBackRequest()
@@ -331,7 +336,7 @@ bool AppROS::goBackRequest()
     if (!cl_cfg_.localize_against_prior_map){
         // Set map to localize against
         pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_map_ptr = aligned_map_.makeShared();
-        prior_map_ = new AlignedCloud(ros::Time::now().toNSec() / 1000,
+        prior_map_ = new AlignedCloud(rclcpp::Clock().now().nanoseconds() / 1000,
                                       aligned_map_ptr,
                                       Eigen::Isometry3d::Identity());
     }
@@ -343,36 +348,46 @@ bool AppROS::goBackRequest()
     // Set path back
     PathPoses path_forward = vis_->getPath();
 
-    ROS_INFO_STREAM("------------------------------- GO BACK -------------------------------");
-    ROS_INFO_STREAM("[Aicp] Follow path of "
+    RCLCPP_INFO_STREAM(this->get_logger(), "------------------------------- GO BACK -------------------------------");
+    RCLCPP_INFO_STREAM(this->get_logger(), "[Aicp] Follow path of "
                     << path_forward.size()
                     << " poses back to origin.");
-    ROS_INFO_STREAM("-----------------------------------------------------------------------");
+    RCLCPP_INFO_STREAM(this->get_logger(), "-----------------------------------------------------------------------");
 
-    talk_ros_->publishFootstepPlan(path_forward, ros::Time::now().toNSec() / 1000, true);
+    talk_ros_->publishFootstepPlan(path_forward, rclcpp::Clock().now().nanoseconds() / 1000, true);
     pcl::PointCloud<pcl::PointXYZ>::Ptr prior_map_ptr = prior_map_->getCloud();
     vis_->publishMap(prior_map_ptr, prior_map_->getUtime(), 0);
 
     return true;
 }
 
-void AppROS::getPoseAsIsometry3d(const geometry_msgs::PoseWithCovarianceStampedConstPtr &pose_msg,
+void AppROS::getPoseAsIsometry3d(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr pose_msg,
                                  Eigen::Isometry3d& eigen_pose)
 {
-    tf::poseMsgToTF(pose_msg->pose.pose, temp_tf_pose_);
-    tf::transformTFToEigen(temp_tf_pose_, eigen_pose);
+    // tf::poseMsgToTF(pose_msg->pose.pose, temp_tf_pose_);
+    // tf::transformTFToEigen(temp_tf_pose_, eigen_pose);
+    tf2::fromMsg(pose_msg->pose.pose, eigen_pose);
 }
 
-void AppROS::getPoseAsIsometry3d(const geometry_msgs::PoseStampedConstPtr &pose_msg,
+void AppROS::getPoseAsIsometry3d(const geometry_msgs::msg::PoseStamped::SharedPtr pose_msg,
                                  Eigen::Isometry3d& eigen_pose)
 {
-    tf::poseMsgToTF(pose_msg->pose, temp_tf_pose_);
-    tf::transformTFToEigen(temp_tf_pose_, eigen_pose);
+    // tf::poseMsgToTF(pose_msg->pose, temp_tf_pose_);
+    // tf::transformTFToEigen(temp_tf_pose_, eigen_pose);
+    tf2::fromMsg(pose_msg->pose, eigen_pose);
 }
 
 void AppROS::run()
 {
-    worker_thread_ = std::thread(std::ref(*this)); // std::ref passes a pointer for you behind the scene
+    // worker_thread_ = std::thread(std::ref(*this)); // std::ref passes a pointer for you behind the scene
+
+    worker_thread_ = std::thread(
+        [this]() {
+
+            (*this)();
+        }
+
+    );
 }
 
 } // namespace aicp

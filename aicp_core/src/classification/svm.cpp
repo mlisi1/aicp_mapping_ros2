@@ -1,4 +1,4 @@
-#include "aicp_classification/svm.hpp"
+#include "aicp_core/aicp_classification/svm.hpp"
 
 namespace aicp {
 

@@ -1,28 +1,34 @@
 #pragma once
 
-#include "ros/node_handle.h"
+#include "rclcpp/rclcpp.hpp"
 
-#include "aicp_utils/visualizer.hpp"
+#include "aicp_core/aicp_utils/visualizer.hpp"
 
-#include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/PoseWithCovarianceStamped.h>
-#include <nav_msgs/Path.h>
+#include <geometry_msgs/msg//pose_stamped.hpp>
+#include <geometry_msgs/msg//transform_stamped.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+#include <nav_msgs/msg/path.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
-#include <eigen_conversions/eigen_msg.h>
+#include <tf2_eigen/tf2_eigen.hpp>
 
-#include <tf_conversions/tf_eigen.h>
-#include <tf/transform_listener.h>
-#include <tf/transform_broadcaster.h>
+// #include <tf_conversions/tf_eigen.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/buffer.h>
+#include <tf2/transform_datatypes.h>
+
+
 
 #include <Eigen/StdVector>
 
 namespace aicp {
 
-class ROSVisualizer : public Visualizer
+class ROSVisualizer : public rclcpp::Node, public Visualizer
 {
 public:
 
-    ROSVisualizer(ros::NodeHandle& nh, std::string fixed_frame);
+    ROSVisualizer(std::string fixed_frame);
     ~ROSVisualizer(){}
 
     // Publish cloud
@@ -66,9 +72,9 @@ public:
 
     // Publish tf from fixed_frame to odom
     void publishFixedFrameToOdomTF(const Eigen::Isometry3d& fixed_frame_to_base_eigen,
-                                   ros::Time msg_time);
+                                   rclcpp::Time msg_time);
     void publishFixedFrameToOdomPose(const Eigen::Isometry3d& fixed_frame_to_base_eigen,
-                                     ros::Time msg_time);
+                                     rclcpp::Time msg_time);
 
     // Gets
     const PathPoses& getPath(){
@@ -76,16 +82,15 @@ public:
     }
 
 private:
-    ros::NodeHandle& nh_;
-    ros::Publisher cloud_pub_;
-    ros::Publisher prior_map_pub_;
-    ros::Publisher aligned_map_pub_;
-    ros::Publisher pose_pub_;
-    ros::Publisher odom_pose_pub_;
-    ros::Publisher prior_pose_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr prior_map_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr aligned_map_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pose_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr odom_pose_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr prior_pose_pub_;
 
-    ros::Publisher fixed_to_odom_pub_;
-    ros::Publisher odom_to_map_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr fixed_to_odom_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr odom_to_map_pub_;
     
     // Duplicates the list in collections renderer. assumed to be 3xN colors
     std::vector<double> colors_;
@@ -100,11 +105,12 @@ private:
     std::string fixed_to_odom_prefix_ = "/localization_manager/";
 
     // TF listener and broadcaster
-    tf::TransformListener tf_listener_;
-    tf::TransformBroadcaster tf_broadcaster_;
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;
+    std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
-    geometry_msgs::PoseWithCovarianceStamped fixed_to_odom_msg_;
-    tf::Pose temp_tf_pose_;
+    geometry_msgs::msg::PoseWithCovarianceStamped fixed_to_odom_msg_;
+    geometry_msgs::msg::Pose temp_tf_pose_;
 
     void computeFixedFrameToOdom(const Eigen::Isometry3d &fixed_frame_to_base_eigen,
                                  Eigen::Isometry3d& fixed_frame_to_odom_eigen);

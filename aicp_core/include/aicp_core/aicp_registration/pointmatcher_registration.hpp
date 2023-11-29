@@ -4,13 +4,13 @@
 #include <Eigen/Eigenvalues>
 
 //Project lib
-#include "aicp_registration/common.hpp"
-#include "aicp_registration/abstract_registrator.hpp"
+#include "common.hpp"
+#include "abstract_registrator.hpp"
 
-#include "aicp_utils/cloudIO.h"
-#include "aicp_utils/fileIO.h"
-#include "aicp_utils/icpMonitor.h"
-#include "aicp_utils/filteringUtils.hpp"
+#include "aicp_core/aicp_utils/cloudIO.hpp"
+#include "aicp_core/aicp_utils/fileIO.h"
+#include "aicp_core/aicp_utils/icpMonitor.h"
+#include "aicp_core/aicp_utils/filteringUtils.hpp"
 
 using namespace std;
 

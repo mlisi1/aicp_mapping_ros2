@@ -1,16 +1,19 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.8)
 
 project(aicp_core)
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++17)
 set(AICP_CORE_LIB ${PROJECT_NAME})
+set(CMAKE_CXX_STANDARD 17)
 
 # Find system dependencies (buildtime dependencies)
-find_package(catkin REQUIRED)
+find_package(ament_cmake REQUIRED)
 find_package(libpointmatcher REQUIRED)
-find_package(PCL REQUIRED)
+find_package(PCL REQUIRED)# COMPONENTS common io visualization)
 find_package(Eigen3 REQUIRED)
 find_package(octomap REQUIRED)
-find_package(OpenCV 3.0 REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(VTK REQUIRED)
+
 
 # Add include directories
 include_directories(
@@ -19,21 +22,54 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   ${OCTOMAP_INCLUDE_DIRS}
+  /usr/include/vtk-9.1
 )
 
-catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES ${AICP_CORE_LIB} # libraries which will be visible outside 
-            aicpRegistration
-            aicpOverlap
-            aicpClassification
-            aicpUtils 
-  CATKIN_DEPENDS
-  DEPENDS libpointmatcher
-          PCL
-          OCTOMAP
-          OpenCV) # dependencies which will be taken outside
-  
+# catkin_package(
+#   INCLUDE_DIRS include
+#   LIBRARIES ${AICP_CORE_LIB} # libraries which will be visible outside 
+#             aicpRegistration
+#             aicpOverlap
+#             aicpClassification
+#             aicpUtils 
+#   CATKIN_DEPENDS
+#   DEPENDS libpointmatcher
+#           PCL
+#           OCTOMAP
+#           OpenCV) # dependencies which will be taken outside
+
+
+
+ament_export_dependencies(
+"libpointmatcher"
+"PCL"
+"OCTOMAP"
+"OpenCV"
+"VTK"
+)
+
+ament_export_include_directories(
+include
+${aicp_core_INCLUDE_DIRS}
+/usr/include/vtk-9.1   
+)
+
+add_definitions(${PCL_DEFINITIONS})
+
+
+
+
+
+ament_export_libraries(
+${AICP_CORE_LIB} # libraries which will be visible outside 
+aicpRegistration
+aicpOverlap
+aicpClassification
+aicpUtils        
+)
+
+
+
   
 #################
 # Utils library #
@@ -46,6 +82,12 @@ add_library(aicpUtils SHARED src/utils/common.cpp
                              src/utils/filteringUtils.cpp)
 target_link_libraries(aicpUtils ${libpointmatcher_LIBRARIES}
                                 ${PCL_LIBRARIES})
+
+
+
+
+
+
 
 
 ##################
@@ -99,25 +141,33 @@ target_link_libraries(${AICP_CORE_LIB} yaml-cpp
 # Unit test #
 #############
 add_executable(aicp_test test/aicp_test.cpp)
-target_link_libraries(aicp_test ${AICP_CORE_LIB})
+target_link_libraries(aicp_test ${AICP_CORE_LIB} ${PCL_LIBRARIES})
+
+
+
+  
 
 
 #############
 ## Install ##
 #############
-install(TARGETS ${TARGETS} ${AICP_CORE_LIB}
-        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(TARGETS ${AICP_CORE_LIB} aicpRegistration aicpUtils aicpOverlap aicpClassification
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY include/aicp_registration/
-                  include/aicp_overlap/
-                  include/aicp_classification/
-                  include/aicp_utils/
-        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-        FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/
+        DESTINATION include/
+)
+
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME}
+)
 
 ###############  
 # Extra Tools #
 ###############
 #add_subdirectory(src/tools)
+
+ament_package()

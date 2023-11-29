@@ -1,8 +1,8 @@
 #ifndef AICP_CLASSIFICATION_CREATE_CLASSIFIER_HPP_
 #define AICP_CLASSIFICATION_CREATE_CLASSIFIER_HPP_
 
-#include "aicp_classification/abstract_classification.hpp"
-#include "aicp_classification/svm.hpp"
+#include "aicp_core/aicp_classification/abstract_classification.hpp"
+#include "aicp_core/aicp_classification/svm.hpp"
 
 namespace aicp {
 

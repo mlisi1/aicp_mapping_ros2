@@ -1,6 +1,6 @@
 #include "aicp_ros/velodyne_accumulator.hpp"
 
-#include "aicp_utils/filteringUtils.hpp"
+#include "aicp_core/aicp_utils/filteringUtils.hpp"
 
 #include <pcl/point_types.h>
 
@@ -9,11 +9,10 @@ using PointCloud = aicp::VelodyneAccumulatorROS::PointCloud;
 
 namespace aicp {
 
-VelodyneAccumulatorROS::VelodyneAccumulatorROS(ros::NodeHandle &nh,
-                                               const VelodyneAccumulatorConfig &config) :
-                                               nh_(nh), config_(config)
+VelodyneAccumulatorROS::VelodyneAccumulatorROS(const VelodyneAccumulatorConfig &config) :
+                                               Node("VelodyneAccumulatorROS"), config_(config), tf_buffer_(get_clock()), listener_(tf_buffer_)
 {
-//    lidar_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(config_.lidar_topic,
+//    lidar_sub_ = nh_.subscribe<sensor_msgs::msg::PointCloud2>(config_.lidar_topic,
 //                                                         100,
 //                                                         &VelodyneAccumulatorROS::processLidar,
 //                                                         this);
@@ -21,35 +20,36 @@ VelodyneAccumulatorROS::VelodyneAccumulatorROS(ros::NodeHandle &nh,
 
 void VelodyneAccumulatorROS::setConfig(const VelodyneAccumulatorConfig &config){
     config_ = config;
-    lidar_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(config_.lidar_topic,
+    lidar_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(config_.lidar_topic,
                                                          100,
-                                                         &VelodyneAccumulatorROS::processLidar,
-                                                         this);
+                                                         std::bind(&VelodyneAccumulatorROS::processLidar, this, std::placeholders::_1));
 }
 
 
-void VelodyneAccumulatorROS::processLidar(const sensor_msgs::PointCloud2::ConstPtr& cloud_in)
+void VelodyneAccumulatorROS::processLidar(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_in)
 {
     if(finished_){
         return;
     }
-    cloud_msg_ = *cloud_in;
+    cloud_msg_ = cloud_in;
 
-    ros::Time msg_time(cloud_msg_.header.stamp.sec, cloud_msg_.header.stamp.nsec);
-    tf::StampedTransform body_pose_tf;
+    rclcpp::Time msg_time(cloud_msg_->header.stamp.sec, cloud_msg_->header.stamp.nanosec);
+    geometry_msgs::msg::TransformStamped body_pose_tf;
     try {
         // waitForTransform( to frame, from frame, ... )
-        listener_.waitForTransform(config_.inertial_frame, cloud_msg_.header.frame_id, msg_time, ros::Duration(1.0));
-        listener_.lookupTransform(config_.inertial_frame, cloud_msg_.header.frame_id, msg_time, body_pose_tf);
+        // listener_.waitForTransform(config_.inertial_frame, cloud_msg_->header.frame_id, msg_time, ros::Duration(1.0));
+        // listener_.lookupTransform(config_.inertial_frame, cloud_msg_->header.frame_id, msg_time, body_pose_tf);
+
+        body_pose_tf = tf_buffer_.lookupTransform(config_.inertial_frame, cloud_msg_->header.frame_id, msg_time);
     }
-    catch (tf::TransformException ex)
+    catch (tf2::TransformException ex)
     {
-        ROS_ERROR("%s : ", ex.what());
-        ROS_ERROR("Skipping point cloud.");
+        RCLCPP_ERROR(this->get_logger(), "%s : ", ex.what());
+        RCLCPP_ERROR(this->get_logger(), "Skipping point cloud.");
         return;
     }
     Eigen::Isometry3d body_pose_eigen;
-    tf::transformTFToEigen(body_pose_tf, body_pose_eigen);
+    body_pose_eigen = tf2::transformToEigen(body_pose_tf);
 
     // Transform point cloud to global frame
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_tmp(new pcl::PointCloud<pcl::PointXYZ>);
@@ -64,7 +64,7 @@ void VelodyneAccumulatorROS::processLidar(const sensor_msgs::PointCloud2::ConstP
 
     // Accumulate
     accumulated_point_cloud_ += point_cloud_;
-    utime_ = cloud_msg_.header.stamp.toNSec() / 1000;
+    utime_ = cloud_msg_->header.stamp.nanosec / 1000;
 
     // Check number of accumulated clouds
     if(++counter >= config_.batch_size){

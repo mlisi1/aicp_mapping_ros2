@@ -1,6 +1,6 @@
-#include "aicp_registration/yaml_configurator.hpp"
-#include "aicp_utils/common.hpp"
-#include "aicp_utils/fileIO.h"
+#include "aicp_core/aicp_registration/yaml_configurator.hpp"
+#include "aicp_core/aicp_utils/common.hpp"
+#include "aicp_core/aicp_utils/fileIO.h"
 
 using namespace std;
 

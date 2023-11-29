@@ -2,9 +2,9 @@
 
 #include <yaml-cpp/yaml.h> // read the yaml config
 #include <string>
-#include "aicp_registration/common.hpp"
-#include "aicp_overlap/common.hpp"
-#include "aicp_classification/common.hpp"
+#include "common.hpp"
+#include "aicp_core/aicp_overlap/common.hpp"
+#include "aicp_core/aicp_classification/common.hpp"
 
 namespace aicp {
 

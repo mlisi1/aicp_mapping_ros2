@@ -1,4 +1,4 @@
-#include "aicp_utils/filteringUtils.hpp"
+#include "aicp_core/aicp_utils/filteringUtils.hpp"
 
 // Returns filtered cloud: uniform sampling and planes segmentation.
 // This filter reduces the input's size.
@@ -14,8 +14,10 @@ void regionGrowingUniformPlaneSegmentationFilter(pcl::PointCloud<pcl::PointXYZ>:
 
   // Normals extraction.
   pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
-  pcl::search::Search<pcl::PointXYZ>::Ptr tree =
-  boost::shared_ptr<pcl::search::Search<pcl::PointXYZ>> (new pcl::search::KdTree<pcl::PointXYZ>);
+  // pcl::search::Search<pcl::PointXYZ>::Ptr tree =
+  // boost::shared_ptr<pcl::search::Search<pcl::PointXYZ>> (new pcl::search::KdTree<pcl::PointXYZ>);
+  pcl::search::Search<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+
   pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
   normal_estimator.setSearchMethod(tree);
   normal_estimator.setInputCloud(cloud_sampled);
@@ -63,11 +65,15 @@ void regionGrowingUniformPlaneSegmentationFilter(pcl::PointCloud<pcl::PointXYZ>:
 
   // Normals extraction.
   pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
-  pcl::search::Search<pcl::PointXYZRGBNormal>::Ptr tree =
-  boost::shared_ptr<pcl::search::Search<pcl::PointXYZRGBNormal>> (new pcl::search::KdTree<pcl::PointXYZRGBNormal>);
+  // pcl::search::Search<pcl::PointXYZRGBNormal>::Ptr tree =
+  // boost::shared_ptr<pcl::search::Search<pcl::PointXYZRGBNormal>> (new pcl::search::KdTree<pcl::PointXYZRGBNormal>);
+  pcl::search::Search<pcl::PointXYZRGBNormal>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBNormal>);
+      // pcl::search::KdTree<pcl::PointXYZRGBNormal>::Ptr rgb_normal_tree(new pcl::search::KdTree<pcl::PointXYZRGBNormal>);
+
+
   pcl::NormalEstimation<pcl::PointXYZRGBNormal, pcl::Normal> normal_estimator;
-  normal_estimator.setSearchMethod(tree);
   normal_estimator.setInputCloud(cloud_sampled_out);
+  normal_estimator.setSearchMethod(tree); 
   normal_estimator.setKSearch(30);
   normal_estimator.setViewPoint(view_point.translation().x(), view_point.translation().y(), view_point.translation().z());
   normal_estimator.compute(*normals);

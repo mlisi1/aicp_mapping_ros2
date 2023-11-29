@@ -8,18 +8,18 @@
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
 
-#include "aicp_registration/common.hpp"
-#include "aicp_registration/pointmatcher_registration.hpp"
-#include "aicp_registration/aligned_clouds_graph.hpp"
-#include "aicp_registration/abstract_registrator.hpp"
+#include "common.hpp"
+#include "pointmatcher_registration.hpp"
+#include "aligned_clouds_graph.hpp"
+#include "abstract_registrator.hpp"
 
-#include "aicp_overlap/common.hpp"
-#include "aicp_overlap/abstract_overlapper.hpp"
+#include "aicp_core/aicp_overlap/common.hpp"
+#include "aicp_core/aicp_overlap/abstract_overlapper.hpp"
 
-#include "aicp_classification/common.hpp"
-#include "aicp_classification/abstract_classification.hpp"
+#include "aicp_core/aicp_classification/common.hpp"
+#include "aicp_core/aicp_classification/abstract_classification.hpp"
 
-#include "aicp_utils/visualizer.hpp"
+#include "aicp_core/aicp_utils/visualizer.hpp"
 
 struct CommandLineConfig
 {

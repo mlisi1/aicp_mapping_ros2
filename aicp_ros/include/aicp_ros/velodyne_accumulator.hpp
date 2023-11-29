@@ -4,11 +4,12 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 
-#include <tf/transform_listener.h>
-#include <tf_conversions/tf_eigen.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_eigen/tf2_eigen.hpp>
+// #include <tf_conversions/tf_eigen.h>
 
 //#include <laser_geometry/laser_geometry.h>
-#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
 namespace aicp {
 
@@ -21,14 +22,13 @@ struct VelodyneAccumulatorConfig
     std::string inertial_frame = "/odom";
 };
 
-class VelodyneAccumulatorROS {
+class VelodyneAccumulatorROS : public rclcpp::Node {
 public:
     typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 public:
-    VelodyneAccumulatorROS(ros::NodeHandle& nh,
-                           const VelodyneAccumulatorConfig& config);
+    VelodyneAccumulatorROS(const VelodyneAccumulatorConfig& config);
 
-    void processLidar(const sensor_msgs::PointCloud2::ConstPtr& cloud_in);
+    void processLidar(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_in);
 
     // functions to mimick the same behavior of MIT's cloud accumulator class
     void setConfig(const VelodyneAccumulatorConfig& config);
@@ -41,12 +41,13 @@ public:
     void clearCloud();
 
 private:
-    tf::TransformListener listener_;
+    tf2_ros::TransformListener listener_;
+    tf2_ros::Buffer tf_buffer_;
     VelodyneAccumulatorConfig config_;
 //    laser_geometry::LaserProjection projector_;
 
 //    sensor_msgs::PointCloud2 point_cloud_ros_msg_;
-    sensor_msgs::PointCloud2 cloud_msg_;
+    sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_;
 //    pcl::PCLPointCloud2 point_cloud_pcl_msg_;
 
     // clouds in global frame
@@ -55,8 +56,7 @@ private:
     PointCloud accumulated_point_cloud_;
     int64_t utime_;
 
-    ros::NodeHandle& nh_;
-    ros::Subscriber lidar_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr lidar_sub_;
     bool finished_ = false;
     uint16_t counter = 0;
 };

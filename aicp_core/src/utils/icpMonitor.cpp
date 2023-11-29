@@ -1,4 +1,4 @@
-#include "aicp_utils/icpMonitor.h"
+#include "aicp_core/aicp_utils/icpMonitor.h"
 
 /* Compute metrics (implemented in libpointmatcher) given registration between a reference and an input cloud
 (Haussdorff distance, Haussdorff quantile distance and Robust mean distance in meters). */
@@ -26,7 +26,9 @@ float hausdorffDistance(DP &ref, DP &out, const char *filename)
   params["knn"] =  toParam(1); // for Hausdorff distance, we only need the first closest point
   params["epsilon"] =  toParam(0);
 
-  PM::Matcher* matcherHausdorff = PM::get().MatcherRegistrar.create("KDTreeMatcher", params);
+  // PM::Matcher* matcherHausdorff = PM::get().MatcherRegistrar.create("KDTreeMatcher", params);
+  PM::Matcher* matcherHausdorff = PM::get().MatcherRegistrar.create("KDTreeMatcher", params).get();
+
 
   float quantile = 0.60;
   
@@ -102,7 +104,9 @@ PM::Matrix distancesKNN(DP &A, DP &B, const char *filename)
   params["knn"] =  toParam(1); // for Hausdorff distance, we only need the first closest point
   params["epsilon"] =  toParam(0);
 
-  PM::Matcher* matcher = PM::get().MatcherRegistrar.create("KDTreeMatcher", params);
+  // PM::Matcher* matcher = PM::get().MatcherRegistrar.create("KDTreeMatcher", params);
+  PM::Matcher* matcher = PM::get().MatcherRegistrar.create("KDTreeMatcher", params).get();
+
 
   // from reading to reference
   matcher->init(A);

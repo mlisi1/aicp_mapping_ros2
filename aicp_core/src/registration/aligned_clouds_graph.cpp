@@ -1,4 +1,4 @@
-#include "aicp_registration/aligned_clouds_graph.hpp"
+#include "aicp_core/aicp_registration/aligned_clouds_graph.hpp"
 
 namespace aicp {
 
